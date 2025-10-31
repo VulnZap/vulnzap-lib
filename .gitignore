@@ -6,4 +6,4 @@ dev.db
 *.db
 *.env
 
-.pnpm-lock.yaml
+pnpm-lock.yaml
