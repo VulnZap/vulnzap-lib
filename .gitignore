@@ -1,0 +1,9 @@
+node_modules
+.env 
+package-lock.json
+dist
+dev.db
+*.db
+*.env
+
+.pnpm-lock.yaml

@@ -1,0 +1,34 @@
+{
+  "name": "vulnzap-lib",
+  "version": "1.0.0",
+  "description": "",
+  "exports": {
+    ".": {
+      "default": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "./dist"
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc ",
+    "start": "node dist/index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/events": "^3.0.3",
+    "rimraf": "^6.1.0",
+    "tsc-alias": "^1.8.16",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "axios": "^1.13.1",
+    "events": "^3.3.0"
+  }
+}
