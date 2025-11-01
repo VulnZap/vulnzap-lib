@@ -1,5 +1,5 @@
 {
-  "name": "vulnzap-lib",
+  "name": "@vulnzap/client",
   "version": "1.0.0",
   "description": "",
   "exports": {
@@ -23,12 +23,15 @@
   "type": "commonjs",
   "devDependencies": {
     "@types/events": "^3.0.3",
+    "@types/eventsource": "^1.1.15",
+    "@types/node": "^20.0.0",
     "rimraf": "^6.1.0",
     "tsc-alias": "^1.8.16",
     "typescript": "^5.9.3"
   },
   "dependencies": {
     "axios": "^1.13.1",
-    "events": "^3.3.0"
+    "events": "^3.3.0",
+    "eventsource": "^4.0.0"
   }
 }

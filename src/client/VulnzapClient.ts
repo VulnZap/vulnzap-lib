@@ -4,8 +4,11 @@ import type {
   ScanPayload,
   ScanCompletedEvent,
   ScanUpdateEvent,
+  ScanInitResponse,
+  ScanApiJobResponse,
 } from "../types/scan";
 import { EventEmitter } from "events";
+import type { VulnzapClientOptions } from "../types/client";
 
 /**
  * Main API client for interacting with the Vulnzap vulnerability scanning service.
@@ -17,7 +20,10 @@ import { EventEmitter } from "events";
  *
  * @example
  * ```ts
- * const client = new VulnzapClient({ apiKey: process.env.VULNZAP_API_KEY! });
+ * const client = new VulnzapClient({ 
+ *   apiKey: process.env.VULNZAP_API_KEY!,
+ *   baseUrl: process.env.VULNZAP_BASE_URL!
+ * });
  * client.on("completed", console.log);
  * ```
  */
@@ -38,12 +44,25 @@ export class VulnzapClient extends EventEmitter {
    * @param options.apiKey - Your Vulnzap API key.
    * @param options.baseUrl - Optional custom API base URL (defaults to Vulnzap cloud).
    */
-  constructor(options: { apiKey: string; baseUrl?: string }) {
+  constructor(options: VulnzapClientOptions) {
     super();
     this.api = new VulnzapAPI(
       options.apiKey,
-      options.baseUrl || "https://api.vulnzap.com"
+      options.baseUrl || "https://engine.vulnzap.com"
     );
+    
+    // Forward events from API to client
+    this.api.on("completed", (data: ScanCompletedEvent) => {
+      this.emit("completed", data);
+    });
+    
+    this.api.on("update", (data: ScanUpdateEvent) => {
+      this.emit("update", data);
+    });
+    
+    this.api.on("error", (error: any) => {
+      this.emit("error", error);
+    });
   }
 
   /**
@@ -68,46 +87,28 @@ export class VulnzapClient extends EventEmitter {
    */
   async scanCommit(
     payload: ScanPayload
-  ): Promise<{ jobId: string; status: string }> {
+  ): Promise<ScanInitResponse> {
     const job = await this.api.scanCommit(payload);
-    this.listenForCompletion(job.jobId);
-    return job;
+    this.api.listenForCompletion({ 
+      jobId: job.data.jobId, 
+      commitHash: payload.commitHash, 
+      mode: "commit" 
+    });
+    return {
+      success: true,
+      data: {
+        jobId: job.data.jobId,
+        status: job.data.status,
+      },
+    } as ScanInitResponse;
   }
 
   /**
-   * Listen for completion of a scan job using Server-Sent Events (SSE).
-   * Emits "update", "completed", and "error" events.
-   * @param jobId - The ID of the scan job to listen for.
+   * 
+   * @param jobId - The job ID of the scan to get.
+   * @returns The completed scan results.
    */
-  private listenForCompletion(jobId: string): void {
-    const sseUrl = `${this.api["baseUrl"]}/events/${jobId}`;
-    const eventSource = new EventSource(sseUrl);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.status === "completed") {
-          this.emit("completed", data as ScanCompletedEvent);
-          eventSource.close();
-        } else {
-          this.emit("update", data as ScanUpdateEvent);
-        }
-      } catch (err) {
-        this.emit("error", {
-          jobId,
-          message: "Failed to parse SSE data",
-          error: err,
-        });
-      }
-    };
-
-    eventSource.onerror = (err) => {
-      this.emit("error", {
-        jobId,
-        message: "SSE connection error",
-        error: err,
-      });
-      eventSource.close();
-    };
+  async getCompletedCommitScan(jobId: string): Promise<ScanApiJobResponse> {
+    return this.api.getScanFromApi(jobId);
   }
 }
