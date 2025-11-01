@@ -7,3 +7,5 @@ dev.db
 *.env
 
 pnpm-lock.yaml
+
+.DS_Store
