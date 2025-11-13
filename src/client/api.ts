@@ -1,12 +1,13 @@
 import axios from "axios";
 import type {
-    ScanPayload,
+    CommitScanPayload,
     ScanInitResponse,
     ScanCompletedEvent,
     ScanUpdateEvent,
     ScanCacheEntry,
     ScanApiJobResponse,
     ListenerOptions,
+    RepositoryScanPayload,
 } from "../types/scan";
 import { EventEmitter } from "events";
 import { VulnzapCache } from "./system/cache";
@@ -49,7 +50,7 @@ export class VulnzapAPI extends EventEmitter {
      * @param payload - Details of the commit and files to scan.
      * @returns A promise resolving to the scan initiation result with job ID and status.
      */
-    async scanCommit(payload: ScanPayload): Promise<ScanInitResponse> {
+    async scanCommit(payload: CommitScanPayload): Promise<ScanInitResponse> {
         const response = await axios.post<ScanInitResponse>(
             `${this.baseUrl}/api/scan/commit`,
             payload,
@@ -77,6 +78,44 @@ export class VulnzapAPI extends EventEmitter {
             repository: payload.repository || "",
             branch: payload.branch || "",
             results: {},
+        });
+        return {
+            success: true,
+            data: {
+                jobId: jobId,
+                status: status,
+            },
+        } as ScanInitResponse;
+    }
+
+    async scanRepository(payload: RepositoryScanPayload): Promise<ScanInitResponse> {
+        const response = await axios.post<ScanInitResponse>(
+            `${this.baseUrl}/api/scan/github`,
+            payload,
+            {
+                headers: {
+                    "x-api-key": this.apiKey,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+        if (response.status !== 200) {
+            throw new Error(`Failed to scan repository: ${response.statusText}`);
+        }
+        const { jobId, status } = response.data.data;
+        if (!jobId) {
+            throw new Error("Invalid response from API");
+        }
+        // save the scan to the cache
+        await this.cache.save("repo", payload.repository, {
+            jobId: jobId,
+            timestamp: Date.now(),
+            status: status,
+            resolved: false,
+            resolved_timestamp: 0,
+            repository: payload.repository,
+            branch: "",
+            results: null,
         });
         return {
             success: true,

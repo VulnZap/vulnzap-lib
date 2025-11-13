@@ -1,7 +1,8 @@
 import { VulnzapAPI } from "./api";
 import type { VulnzapEvents } from "./eventTypes";
 import type {
-  ScanPayload,
+  CommitScanPayload,
+  RepositoryScanPayload,
   ScanCompletedEvent,
   ScanUpdateEvent,
   ScanInitResponse,
@@ -86,13 +87,36 @@ export class VulnzapClient extends EventEmitter {
    * ```
    */
   async scanCommit(
-    payload: ScanPayload
+    payload: CommitScanPayload
   ): Promise<ScanInitResponse> {
     const job = await this.api.scanCommit(payload);
     this.api.listenForCompletion({ 
       jobId: job.data.jobId, 
       commitHash: payload.commitHash, 
       mode: "commit" 
+    });
+    return {
+      success: true,
+      data: {
+        jobId: job.data.jobId,
+        status: job.data.status,
+      },
+    } as ScanInitResponse;
+  }
+
+  /**
+   * Scan a repository for vulnerabilities.
+   * @param payload - The repository details to scan.
+   * @returns A promise resolving to the scan initiation result with job ID and status.
+   */
+  async scanRepository(
+    payload: RepositoryScanPayload
+  ): Promise<ScanInitResponse> {
+    const job = await this.api.scanRepository(payload);
+    this.api.listenForCompletion({ 
+      jobId: job.data.jobId, 
+      commitHash: "", 
+      mode: "repo" 
     });
     return {
       success: true,

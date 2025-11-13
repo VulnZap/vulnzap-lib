@@ -11,7 +11,7 @@ export interface ScannedFile {
 /**
  * The payload sent to the Vulnzap API when initiating a scan.
  */
-export interface ScanPayload {
+export interface CommitScanPayload {
   /**
    * The commit hash to scan.
    */
@@ -32,6 +32,21 @@ export interface ScanPayload {
    * The identifier of the user who is initiating the scan (From the clientorganization).
    */
   userIdentifier: string;
+}
+
+export interface RepositoryScanPayload {
+  /**
+   * The identifier of the user who is initiating the scan (From the clientorganization).
+   */
+  userIdentifier: string;
+  /**
+   * The repository name to scan.
+   */
+  repository: string;
+  /**
+   * The branch name to scan.
+   */
+  branch?: string;
 }
 
 /**
