@@ -19,7 +19,7 @@ export interface CommitScanPayload {
   /**
    * The repository name to scan.
    */
-  repository?: string;
+  repository: string;
   /**
    * The branch name to scan.
    */
@@ -186,7 +186,7 @@ export interface ScanCacheEntry {
   /**
    * The repository name.
    */
-  repository?: string;
+  repository: string;
   /**
    * The branch name.
    */
@@ -248,6 +248,14 @@ export interface ListenerOptions {
    * The commit hash of the scan.
    */
   commitHash?: string;
+  /**
+   * The repository of the scan.
+   */
+  repository: string;
+  /**
+   * The branch of the scan.
+   */
+  branch?: string;
   /**
    * The mode of the scan.
    */

@@ -7,9 +7,11 @@ import type {
   ScanUpdateEvent,
   ScanInitResponse,
   ScanApiJobResponse,
+  ScanCacheEntry,
 } from "../types/scan";
 import { EventEmitter } from "events";
 import type { VulnzapClientOptions } from "../types/client";
+import { VulnzapCache } from "./system/cache";
 
 /**
  * Main API client for interacting with the Vulnzap vulnerability scanning service.
@@ -38,6 +40,7 @@ export declare interface VulnzapClient {
 
 export class VulnzapClient extends EventEmitter {
   private api: VulnzapAPI;
+  private cache: VulnzapCache;
 
   /**
    * Create a new VulnzapClient instance.
@@ -51,6 +54,7 @@ export class VulnzapClient extends EventEmitter {
       options.apiKey,
       options.baseUrl || "https://engine.vulnzap.com"
     );
+    this.cache = new VulnzapCache();
     
     // Forward events from API to client
     this.api.on("completed", (data: ScanCompletedEvent) => {
@@ -76,15 +80,15 @@ export class VulnzapClient extends EventEmitter {
    * @returns A promise resolving to the scan initiation result with job ID and status.
    *
    * @example
-   * ```ts
-   * const result = await client.scanCommit({
-   *   commit: "abc123",
-   *   repository: "owner/repo",
-   *   branch: "main",
-   *   files: [{ name: "src/app.js", content: "console.log('hi');" }],
-   * });
-   * console.log(result.jobId);
-   * ```
+ * ```ts
+ * const result = await client.scanCommit({
+ *   commitHash: "abc123",
+ *   repository: "owner/repo",
+ *   branch: "main",
+ *   files: [{ name: "src/app.js", content: "console.log('hi');" }],
+ * });
+ * console.log(result.jobId);
+ * ```
    */
   async scanCommit(
     payload: CommitScanPayload
@@ -93,6 +97,8 @@ export class VulnzapClient extends EventEmitter {
     this.api.listenForCompletion({ 
       jobId: job.data.jobId, 
       commitHash: payload.commitHash, 
+      repository: payload.repository!,
+      branch: payload.branch || "",
       mode: "commit" 
     });
     return {
@@ -116,6 +122,8 @@ export class VulnzapClient extends EventEmitter {
     this.api.listenForCompletion({ 
       jobId: job.data.jobId, 
       commitHash: "", 
+      repository: payload.repository,
+      branch: payload.branch || "",
       mode: "repo" 
     });
     return {
@@ -134,5 +142,13 @@ export class VulnzapClient extends EventEmitter {
    */
   async getCompletedCommitScan(jobId: string): Promise<ScanApiJobResponse> {
     return this.api.getScanFromApi(jobId);
+  }
+
+  /**
+   * Gets the latest commit scan from the cache.
+   * @returns The latest cached commit scan data or null if not found.
+   */
+  async getLatestCachedCommitScan(repository: string): Promise<ScanCacheEntry | null> {
+    return this.cache.getLatestCommitScan(repository);
   }
 }

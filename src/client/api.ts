@@ -69,7 +69,7 @@ export class VulnzapAPI extends EventEmitter {
             throw new Error("Invalid response from API");
         }
         // save the scan to the cache
-        await this.cache.save("commit", payload.commitHash, {
+        await this.cache.save("commit", payload.repository, payload.commitHash, {
             jobId: jobId,
             timestamp: Date.now(),
             status: status,
@@ -107,14 +107,14 @@ export class VulnzapAPI extends EventEmitter {
             throw new Error("Invalid response from API");
         }
         // save the scan to the cache
-        await this.cache.save("repo", payload.repository, {
+        await this.cache.save("repo", payload.repository, jobId, {
             jobId: jobId,
             timestamp: Date.now(),
             status: status,
             resolved: false,
             resolved_timestamp: 0,
             repository: payload.repository,
-            branch: "",
+            branch: payload.branch || "",
             results: null,
         });
         return {
@@ -230,24 +230,25 @@ export class VulnzapAPI extends EventEmitter {
                                         const scan = await this.getScanFromApi(
                                             scanJobId
                                         );
-                                        const cacheKey =
+                                        const identifier =
                                             mode === "commit"
                                                 ? commitHash!
-                                                : scan.commitHash;
+                                                : scanJobId;
                                         const cacheEntry = await this.cache.get(
                                             mode,
-                                            cacheKey
+                                            options.repository,
+                                            identifier
                                         );
 
-                                        await this.cache.save(mode, cacheKey, {
+                                        await this.cache.save(mode, options.repository, identifier, {
                                             jobId: scan.jobId,
                                             timestamp: Date.now(),
                                             status: scan.status,
                                             resolved: true,
                                             resolved_timestamp: Date.now(),
                                             repository:
-                                                cacheEntry?.repository || "",
-                                            branch: cacheEntry?.branch || "",
+                                                options.repository || "",
+                                            branch: options.branch || "",
                                             results: scan.results,
                                         });
                                     }
