@@ -4,8 +4,13 @@ import { ScanMode } from "./common";
  * Represents a single file included in a vulnerability scan.
  */
 export interface ScannedFile {
-  name: string;
+  path: string;
   content: string;
+  /**
+   * Indicates if this file was changed (true) or newly added (false).
+   * Only used in incremental scans.
+   */
+  changed?: boolean;
 }
 
 /**
@@ -260,4 +265,35 @@ export interface ListenerOptions {
    * The mode of the scan.
    */
   mode: ScanMode;
+}
+
+/**
+ * The payload sent to the Vulnzap API when initiating an incremental scan.
+ */
+export interface IncrementalScanPayload {
+  sessionId: string;
+  files: ScannedFile[];
+}
+
+/**
+ * The response returned from the API when getting incremental scan results.
+ */
+export interface IncrementalScanResponse {
+  success: boolean;
+  data: {
+    jobId: string;
+    status: string;
+    findings: any[]; // Using any[] for now as findings structure might vary or reuse existing
+  };
+  error?: string;
+}
+
+/**
+ * The cache entry format for stored scan results.
+ */
+export interface SessionCacheEntry {
+  sessionId: string;
+  path: string;
+  timestamp: number;
+  files: string[]; // List of files tracked in this session
 }

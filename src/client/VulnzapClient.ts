@@ -8,7 +8,10 @@ import type {
   ScanInitResponse,
   ScanApiJobResponse,
   ScanCacheEntry,
+  IncrementalScanResponse,
 } from "../types/scan";
+import * as fs from "fs";
+import * as path from "path";
 import { EventEmitter } from "events";
 import type { VulnzapClientOptions } from "../types/client";
 import { VulnzapCache } from "./system/cache";
@@ -55,16 +58,16 @@ export class VulnzapClient extends EventEmitter {
       options.baseUrl || "https://engine.vulnzap.com"
     );
     this.cache = new VulnzapCache();
-    
+
     // Forward events from API to client
     this.api.on("completed", (data: ScanCompletedEvent) => {
       this.emit("completed", data);
     });
-    
+
     this.api.on("update", (data: ScanUpdateEvent) => {
       this.emit("update", data);
     });
-    
+
     this.api.on("error", (error: any) => {
       this.emit("error", error);
     });
@@ -94,12 +97,12 @@ export class VulnzapClient extends EventEmitter {
     payload: CommitScanPayload
   ): Promise<ScanInitResponse> {
     const job = await this.api.scanCommit(payload);
-    this.api.listenForCompletion({ 
-      jobId: job.data.jobId, 
-      commitHash: payload.commitHash, 
+    this.api.listenForCompletion({
+      jobId: job.data.jobId,
+      commitHash: payload.commitHash,
       repository: payload.repository!,
       branch: payload.branch || "",
-      mode: "commit" 
+      mode: "commit"
     });
     return {
       success: true,
@@ -119,12 +122,12 @@ export class VulnzapClient extends EventEmitter {
     payload: RepositoryScanPayload
   ): Promise<ScanInitResponse> {
     const job = await this.api.scanRepository(payload);
-    this.api.listenForCompletion({ 
-      jobId: job.data.jobId, 
-      commitHash: "", 
+    this.api.listenForCompletion({
+      jobId: job.data.jobId,
+      commitHash: "",
       repository: payload.repository,
       branch: payload.branch || "",
-      mode: "repo" 
+      mode: "repo"
     });
     return {
       success: true,
@@ -150,5 +153,87 @@ export class VulnzapClient extends EventEmitter {
    */
   async getLatestCachedCommitScan(repository: string): Promise<ScanCacheEntry | null> {
     return this.cache.getLatestCommitScan(repository);
+  }
+
+  /**
+   * Starts a security assistant session that watches a directory for changes and incrementally scans them.
+   * @param dirPath - The directory to watch.
+   * @param sessionId - The session ID.
+   * @returns True if the watcher started successfully.
+   */
+  securityAssistant(dirPath: string, sessionId: string): boolean {
+    if (!fs.existsSync(dirPath)) {
+      return false;
+    }
+
+    let timeout: NodeJS.Timeout;
+    const resetTimeout = () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        watcher.close();
+        console.log(`Security agent session ${sessionId} closed due to inactivity.`);
+      }, 60000); // 1 minute timeout
+    };
+
+    const watcher = fs.watch(dirPath, { recursive: true }, async (eventType, filename) => {
+      if (filename &&
+        !filename.includes("node_modules") &&
+        !filename.includes(".git") &&
+        !filename.includes(".md") &&
+        !filename.includes(".DS_Store") &&
+        !filename.includes(".lock")
+      ) {
+        resetTimeout();
+        const filePath = path.join(dirPath, filename);
+
+        try {
+          const stats = await fs.promises.stat(filePath);
+          if (stats.isFile()) {
+            const content = await fs.promises.readFile(filePath, "utf-8");
+
+            // Get session to check if file was previously tracked
+            const session = await this.cache.getSession(sessionId) || {
+              sessionId,
+              path: dirPath,
+              timestamp: Date.now(),
+              files: []
+            };
+
+            // Determine if file is changed (exists in session) or new
+            const isChanged = session.files.includes(filename);
+
+            // Send to backend
+            try {
+              await this.api.scanIncremental({
+                sessionId,
+                files: [{ path: filename, content, changed: isChanged }],
+              });
+
+              // Update session cache
+              if (!isChanged) {
+                session.files.push(filename);
+                await this.cache.saveSession(sessionId, session);
+              }
+            } catch (error) {
+              console.error(`Failed to scan incremental change for ${filename}:`, error);
+            }
+          }
+        } catch (err) {
+          // File might have been deleted or is inaccessible
+        }
+      }
+    });
+
+    resetTimeout();
+    return true;
+  }
+
+  /**
+   * Gets the incremental scan results for a session.
+   * @param sessionId - The session ID.
+   * @returns The incremental scan results.
+   */
+  async getIncrementalScanResults(sessionId: string): Promise<IncrementalScanResponse> {
+    return this.api.getIncrementalScanResults(sessionId);
   }
 }

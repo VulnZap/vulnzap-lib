@@ -36,6 +36,10 @@ export class VulnzapCache {
     }
   }
 
+  private getSessionDirectory(): string {
+    return path.join(this.cacheDirectory, 'sessions');
+  }
+
   /**
    * Ensures the cache directory exists, creating it if necessary.
    * @param type - The type of scan (commit or repo)
@@ -102,6 +106,28 @@ export class VulnzapCache {
       const filePath = this.getFilePath(type, repository, identifier);
       const content = await fs.readFile(filePath, 'utf-8');
       return JSON.parse(content) as ScanCacheEntry;
+    } catch {
+      return null;
+    }
+  }
+
+  async saveSession(sessionId: string, data: any): Promise<void> {
+    const dir = this.getSessionDirectory();
+    try {
+      await fs.access(dir);
+    } catch {
+      await fs.mkdir(dir, { recursive: true });
+    }
+    const filePath = path.join(dir, `${sessionId}.json`);
+    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
+  }
+
+  async getSession(sessionId: string): Promise<any | null> {
+    try {
+      const dir = this.getSessionDirectory();
+      const filePath = path.join(dir, `${sessionId}.json`);
+      const content = await fs.readFile(filePath, 'utf-8');
+      return JSON.parse(content);
     } catch {
       return null;
     }

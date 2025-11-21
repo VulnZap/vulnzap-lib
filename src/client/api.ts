@@ -8,6 +8,8 @@ import type {
     ScanApiJobResponse,
     ListenerOptions,
     RepositoryScanPayload,
+    IncrementalScanPayload,
+    IncrementalScanResponse,
 } from "../types/scan";
 import { EventEmitter } from "events";
 import { VulnzapCache } from "./system/cache";
@@ -124,6 +126,38 @@ export class VulnzapAPI extends EventEmitter {
                 status: status,
             },
         } as ScanInitResponse;
+    }
+
+    async scanIncremental(payload: IncrementalScanPayload): Promise<IncrementalScanResponse> {
+        const response = await axios.post<IncrementalScanResponse>(
+            `${this.baseUrl}/api/scan/incremental`,
+            payload,
+            {
+                headers: {
+                    "x-api-key": this.apiKey,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+        if (response.status !== 200) {
+            throw new Error(`Failed to scan incremental: ${response.statusText}`);
+        }
+        return response.data;
+    }
+
+    async getIncrementalScanResults(sessionId: string): Promise<IncrementalScanResponse> {
+        const response = await axios.get<IncrementalScanResponse>(
+            `${this.baseUrl}/api/scan/incremental/${sessionId}`,
+            {
+                headers: {
+                    "x-api-key": this.apiKey,
+                },
+            }
+        );
+        if (response.status !== 200) {
+            throw new Error(`Failed to get incremental scan results: ${response.statusText}`);
+        }
+        return response.data;
     }
 
     async getScanFromApi(jobId: string): Promise<ScanApiJobResponse> {
