@@ -211,11 +211,7 @@ export interface IncrementalScanPayload {
  */
 export interface IncrementalScanResponse {
   success: boolean;
-  data: {
-    jobId: string;
-    status: string;
-    findings: any[]; // Using any[] for now as findings structure might vary or reuse existing
-  };
+  data?: any;
   error?: string;
 }
 

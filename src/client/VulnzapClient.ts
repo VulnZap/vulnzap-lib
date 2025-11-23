@@ -43,6 +43,7 @@ export declare interface VulnzapClient {
 export class VulnzapClient extends EventEmitter {
   private api: VulnzapAPI;
   private cache: VulnzapCache;
+  private securityAssistants: Map<string, { watcher: fs.FSWatcher, timeout: NodeJS.Timeout }> = new Map();
 
   /**
    * Create a new VulnzapClient instance.
@@ -170,12 +171,20 @@ export class VulnzapClient extends EventEmitter {
       return false;
     }
 
-    let timeout: NodeJS.Timeout;
-    const resetTimeout = () => {
+    let timeout: NodeJS.Timeout | null = null;
+    const resetTimeout = async () => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
         watcher.close();
-        console.log(`Security agent session ${options.sessionId} closed due to inactivity.`);
+        this.emit("completed", {
+          jobId: options.sessionId,
+          message: "Security assistant session closed due to inactivity.",
+          data: {
+            sessionId: options.sessionId,
+            path: options.dirPath,
+            timestamp: Date.now(),
+          },
+        });
       }, options.timeout);
     };
 
@@ -218,18 +227,61 @@ export class VulnzapClient extends EventEmitter {
                 session.files.push(filename);
                 await this.cache.saveSession(options.sessionId, session);
               }
-            } catch (error) {
-              console.error(`Failed to scan incremental change for ${filename}:`, error);
+            } catch (error: any) {
+              this.emit("error", {
+                jobId: options.sessionId,
+                message: `Failed to scan incremental change for ${filename}`,
+                data: {
+                  sessionId: options.sessionId,
+                  path: options.dirPath,
+                  timestamp: Date.now(),
+                },
+              });
             }
           }
-        } catch (err) {
+        } catch (err: any) {
+          this.emit("error", {
+            jobId: options.sessionId,
+            message: `Failed to scan incremental change for ${filename}: ${err.message}`,
+            data: {
+              sessionId: options.sessionId,
+              path: options.dirPath,
+              timestamp: Date.now(),
+            },
+          });
           // File might have been deleted or is inaccessible
         }
       }
     });
 
     resetTimeout();
+    this.securityAssistants.set(options.sessionId, { watcher, timeout: timeout! });
     return true;
+  }
+
+  /**
+   * Stops a security assistant session.
+   * @param sessionId - The session ID.
+   */
+  async stopSecurityAssistant(sessionId: string): Promise<IncrementalScanResponse> {
+    const assistant = this.securityAssistants.get(sessionId);
+    if (assistant) {
+      assistant.watcher.close();
+      clearTimeout(assistant.timeout);
+      this.securityAssistants.delete(sessionId);
+    }
+    await this.api.stopIncrementalScan(sessionId);
+    const results = await this.getIncrementalScanResults(sessionId);
+    if (results.success) {
+      return results;
+    } else {
+      this.emit("error", {
+        jobId: sessionId,
+        message: `Failed to get incremental scan results: ${results.error}`,
+        data: results?.data,
+      });
+      return results;
+    }
   }
 
   /**

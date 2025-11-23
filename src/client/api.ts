@@ -147,7 +147,10 @@ export class VulnzapAPI extends EventEmitter {
                 message: `Failed to scan incremental change: ${response.data.error}`,
                 data: response.data,
             });
-            throw new Error(`Failed to scan incremental change: ${response.data.error}`);
+            return {
+                success: false,
+                error: `Failed to scan incremental change: ${response.data.error}`,
+            } as IncrementalScanResponse;
         }
         this.emit(
             "update",
@@ -157,7 +160,10 @@ export class VulnzapAPI extends EventEmitter {
                 data: response.data.data,
             }
         )
-        return response.data;
+        return {
+            success: true,
+            data: response.data.data,
+        } as IncrementalScanResponse;
     }
 
     async getIncrementalScanResults(sessionId: string): Promise<IncrementalScanResponse> {
@@ -170,9 +176,43 @@ export class VulnzapAPI extends EventEmitter {
             }
         );
         if (response.status !== 200) {
-            throw new Error(`Failed to get incremental scan results: ${response.statusText}`);
+            this.emit("error", {
+                jobId: sessionId,
+                message: `Failed to get incremental scan results: ${response.statusText}`,
+                data: response.data,
+            });
+            return {
+                success: false,
+                error: `Failed to get incremental scan results: ${response.statusText}`,
+            } as IncrementalScanResponse;
         }
-        return response.data;
+        return {
+            success: true,
+            data: response.data.data,
+        } as IncrementalScanResponse;
+    }
+
+    async stopIncrementalScan(sessionId: string): Promise<void> {
+        const response = await axios.delete<void>(
+            `${this.baseUrl}/api/scan/incremental/${sessionId}`,
+            {
+                headers: {
+                    "x-api-key": this.apiKey,
+                },
+            }
+        );
+        if (response.status !== 200) {
+            this.emit("error", {
+                jobId: sessionId,
+                message: `Failed to stop incremental scan: ${response.statusText}`,
+                data: response.data,
+            });
+            return;
+        }
+        this.emit("completed", {
+            jobId: sessionId,
+            message: "Incremental scan stopped",
+        });
     }
 
     async getScanFromApi(jobId: string): Promise<ScanApiJobResponse> {
