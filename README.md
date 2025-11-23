@@ -196,31 +196,13 @@ The client emits the following events:
 - **`completed`**: Emitted when scan finishes with final results
 - **`error`**: Emitted on errors during scanning or SSE connection
 
-**Event Types:**
+**Event Type:**
 
 ```typescript
-type ScanUpdateEvent = {
+type ScanEvent = {
   jobId: string;
-  status: "queued" | "scanning" | "analyzing" | "completed";
-  progress?: number;
-};
-
-type ScanCompletedEvent = {
-  jobId: string;
-  status: "completed";
-  findings: Array<{
-    file: string;
-    line: number;
-    severity: "low" | "medium" | "high" | "critical";
-    message: string;
-  }>;
-  summary: {
-    totalFindings: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-  };
+  message; string
+  data?: number;
 };
 ```
 
