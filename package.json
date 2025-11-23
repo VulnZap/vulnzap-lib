@@ -1,6 +1,6 @@
 {
   "name": "@vulnzap/client",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Official client for integrating with the Vulnzap vulnerability scanning service from Node.js or the browser. Provides a simple API to submit scans and receive real-time updates via Server-Sent Events (SSE).",
   "exports": {
     ".": {

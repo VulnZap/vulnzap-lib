@@ -193,26 +193,30 @@ export class VulnzapAPI extends EventEmitter {
     }
 
     async stopIncrementalScan(sessionId: string): Promise<void> {
-        const response = await axios.delete<void>(
-            `${this.baseUrl}/api/scan/incremental/${sessionId}`,
-            {
-                headers: {
-                    "x-api-key": this.apiKey,
-                },
+        try {
+            const response = await axios.delete(
+                `${this.baseUrl}/api/scan/incremental/${sessionId}`,
+                {
+                    headers: {
+                        "x-api-key": this.apiKey,
+                    },
+                }
+            );
+            if (response.status !== 200) {
+                this.emit("error", {
+                    jobId: sessionId,
+                    message: `Failed to stop incremental scan: ${response.statusText}`,
+                    data: response.data,
+                });
+                return;
             }
-        );
-        if (response.status !== 200) {
-            this.emit("error", {
+            this.emit("completed", {
                 jobId: sessionId,
-                message: `Failed to stop incremental scan: ${response.statusText}`,
-                data: response.data,
+                message: "Incremental scan stopped",
             });
+        } catch (error) {
             return;
         }
-        this.emit("completed", {
-            jobId: sessionId,
-            message: "Incremental scan stopped",
-        });
     }
 
     async getScanFromApi(jobId: string): Promise<ScanApiJobResponse> {
