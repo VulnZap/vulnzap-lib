@@ -3,12 +3,11 @@ import type { VulnzapEvents } from "./eventTypes";
 import type {
   CommitScanPayload,
   RepositoryScanPayload,
-  ScanCompletedEvent,
-  ScanUpdateEvent,
   ScanInitResponse,
   ScanApiJobResponse,
   ScanCacheEntry,
   IncrementalScanResponse,
+  ScanEvent,
 } from "../types/scan";
 import * as fs from "fs";
 import * as path from "path";
@@ -60,15 +59,15 @@ export class VulnzapClient extends EventEmitter {
     this.cache = new VulnzapCache();
 
     // Forward events from API to client
-    this.api.on("completed", (data: ScanCompletedEvent) => {
+    this.api.on("completed", (data: ScanEvent) => {
       this.emit("completed", data);
     });
 
-    this.api.on("update", (data: ScanUpdateEvent) => {
+    this.api.on("update", (data: ScanEvent) => {
       this.emit("update", data);
     });
 
-    this.api.on("error", (error: any) => {
+    this.api.on("error", (error: ScanEvent) => {
       this.emit("error", error);
     });
   }

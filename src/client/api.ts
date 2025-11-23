@@ -2,9 +2,6 @@ import axios from "axios";
 import type {
     CommitScanPayload,
     ScanInitResponse,
-    ScanCompletedEvent,
-    ScanUpdateEvent,
-    ScanCacheEntry,
     ScanApiJobResponse,
     ListenerOptions,
     RepositoryScanPayload,
@@ -105,7 +102,7 @@ export class VulnzapAPI extends EventEmitter {
             this.emit("error", {
                 jobId: payload.repository,
                 message: `Failed to scan repository: ${response.statusText}`,
-                error: response.data,
+                data: response.data,
             });
             throw new Error(`Failed to scan repository: ${response.statusText}`);
         }
@@ -147,11 +144,19 @@ export class VulnzapAPI extends EventEmitter {
         if (response.status !== 200) {
             this.emit("error", {
                 jobId: payload.sessionId,
-                message: `Failed to scan incremental change: ${response.statusText}`,
-                error: response.data.error,
+                message: `Failed to scan incremental change: ${response.data.error}`,
+                data: response.data,
             });
-            throw new Error(`Failed to scan incremental change: ${response.statusText}`);
+            throw new Error(`Failed to scan incremental change: ${response.data.error}`);
         }
+        this.emit(
+            "update",
+            {
+                jobId: payload.sessionId,
+                message: "Added more context",
+                data: response.data.data,
+            }
+        )
         return response.data;
     }
 
@@ -267,7 +272,11 @@ export class VulnzapAPI extends EventEmitter {
                                 if (eventData.type === "completed") {
                                     this.emit(
                                         "completed",
-                                        eventData as ScanCompletedEvent
+                                        {
+                                            jobId: eventData.jobId,
+                                            message: "Scan completed",
+                                            data: eventData,
+                                        }
                                     );
                                     const scanJobId = jobId || eventData.jobId;
                                     if (scanJobId) {
@@ -278,11 +287,6 @@ export class VulnzapAPI extends EventEmitter {
                                             mode === "commit"
                                                 ? commitHash!
                                                 : scanJobId;
-                                        const cacheEntry = await this.cache.get(
-                                            mode,
-                                            options.repository,
-                                            identifier
-                                        );
 
                                         await this.cache.save(mode, options.repository, identifier, {
                                             jobId: scan.jobId,
@@ -301,26 +305,30 @@ export class VulnzapAPI extends EventEmitter {
                                 } else if (eventData.type === "progress" || eventData.type === "connected") {
                                     this.emit(
                                         "update",
-                                        eventData as ScanUpdateEvent
+                                        {
+                                            jobId: eventData.jobId,
+                                            message: eventData.message,
+                                            data: eventData,
+                                        }
                                     );
                                 } else if (eventData.type === "error") {
                                     this.emit("error", {
                                         jobId: jobId || "unknown",
                                         message: eventData.message,
-                                        error: eventData.error,
+                                        data: eventData,
                                     });
                                 } else {
                                     this.emit("error", {
                                         jobId: jobId || "unknown",
                                         message: "Unknown event type",
-                                        error: eventData,
+                                        data: eventData,
                                     });
                                 }
                             } catch (parseError) {
                                 this.emit("error", {
                                     jobId: jobId || "unknown",
                                     message: "Failed to parse SSE data",
-                                    error: parseError,
+                                    data: parseError,
                                 });
                             }
                         }
@@ -333,7 +341,7 @@ export class VulnzapAPI extends EventEmitter {
             this.emit("error", {
                 jobId: jobId || "unknown",
                 message: "SSE connection error",
-                error: error,
+                data: error,
             });
         }
     }

@@ -78,90 +78,21 @@ export interface ScanInitResponse {
 }
 
 /**
- * Event payload emitted during the scan lifecycle.
- */
-export interface ScanUpdateEvent {
-  /**
-   * The job ID of the scan.
-   */
-  jobId: string;
-  /**
-   * The status of the scan.
-   */
-  status: "queued" | "scanning" | "analyzing" | "completed";
-  /**
-   * The progress of the scan.
-   */
-  progress?: number;
-}
-
-/**
- * Event payload emitted when a scan is completed successfully.
- */
-export interface ScanCompletedEvent {
-  /**
-   * The job ID of the scan.
-   */
-  jobId: string;
-  /**
-   * The status of the scan.
-   */
-  status: "completed";
-  findings: {
-    /**
-     * The file name of the finding.
-     */
-    file: string;
-    /**
-     * The line number of the finding.
-     */
-    line: number;
-    /**
-     * The severity of the finding.
-     */
-    severity: "low" | "medium" | "high" | "critical";
-    /**
-     * The message of the finding.
-     */
-    message: string;
-  }[];
-  summary: {
-    /**
-     * The total number of findings.
-     */
-    totalFindings: number;
-    /**
-     * The number of critical findings.
-     */
-    critical: number;
-    /**
-     * The number of high findings.
-     */
-    high: number;
-    /**
-     * The number of medium findings.
-     */
-    medium: number;
-    low: number;
-  };
-}
-
-/**
  * Event payload when an error occurs during scanning or SSE.
  */
-export interface ScanErrorEvent {
+export interface ScanEvent {
   /**
    * The job ID of the scan.
    */
   jobId?: string;
   /**
-   * The message of the error.
+   * The message of the event.
    */
   message: string;
   /**
-   * The error object.
+   * The data of the event.
    */
-  error?: any;
+  data?: any;
 }
 
 /**
