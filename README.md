@@ -119,7 +119,11 @@ Initiates a full repository scan. Automatically attaches an SSE listener for rea
 ##### securityAssistant
 
 ```typescript
-securityAssistant(dirPath: string, sessionId: string): boolean
+securityAssistant({
+  sessionId: "23e23",
+  dirPath: "sdknksdn",
+  timeout: 60000,
+}): boolean
 ```
 
 Starts a security assistant session that monitors a directory for file changes and performs incremental scans. Designed for AI coding agents to provide real-time security feedback during development.
@@ -127,14 +131,15 @@ Starts a security assistant session that monitors a directory for file changes a
 **Parameters:**
 - `dirPath`: Directory to monitor
 - `sessionId`: Unique session identifier
+- `timeout`: The timeout after which watcher will stop if no changes are made.
 
-**Returns:** `true` if watcher started successfully, `false` otherwise
+**Returns:** `true` if watcher started successfully, `false` otherwise, errors are emitted which can be received via `client.on("error", ...)`
 
 **Behavior:**
 - Watches directory recursively for file changes
 - Excludes `node_modules`, `.git`, `.md`, `.DS_Store`, and `.lock` files
 - Tracks whether files are new or modified
-- Automatically closes session after 1 minute of inactivity
+- Automatically closes session after the timeout provided
 - Sends incremental scan requests to backend with context
 
 **Example:**

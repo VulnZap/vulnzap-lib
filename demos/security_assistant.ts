@@ -4,7 +4,7 @@ import * as path from "path";
 
 async function runTest() {
     const client = new VulnzapClient({ apiKey: "dummy", baseUrl: "http://localhost:3001" });
-    const testDir = path.join(__dirname, "test_security_assistant");
+    const testDir = path.join(__dirname, "security_assistant");
     const sessionId = "session_1";
 
     if (!fs.existsSync(testDir)) {
@@ -12,7 +12,11 @@ async function runTest() {
     }
 
     console.log("Starting security assistant...");
-    const started = client.securityAssistant(testDir, sessionId);
+    const started = client.securityAssistant({
+        sessionId: sessionId,
+        dirPath: testDir,
+        timeout: 60000,
+    });
     console.log("Watcher started:", started);
 
     console.log("Creating a file...");

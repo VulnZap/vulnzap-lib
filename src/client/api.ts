@@ -102,6 +102,11 @@ export class VulnzapAPI extends EventEmitter {
             }
         );
         if (response.status !== 200) {
+            this.emit("error", {
+                jobId: payload.repository,
+                message: `Failed to scan repository: ${response.statusText}`,
+                error: response.data,
+            });
             throw new Error(`Failed to scan repository: ${response.statusText}`);
         }
         const { jobId, status } = response.data.data;
@@ -140,7 +145,12 @@ export class VulnzapAPI extends EventEmitter {
             }
         );
         if (response.status !== 200) {
-            throw new Error(`Failed to scan incremental: ${response.statusText}`);
+            this.emit("error", {
+                jobId: payload.sessionId,
+                message: `Failed to scan incremental change: ${response.statusText}`,
+                error: response.data.error,
+            });
+            throw new Error(`Failed to scan incremental change: ${response.statusText}`);
         }
         return response.data;
     }

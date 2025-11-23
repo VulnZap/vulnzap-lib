@@ -11,3 +11,20 @@ export interface VulnzapClientOptions {
    */
   baseUrl?: string;
 }
+
+export interface SecurityAssistantOptions {
+  /**
+   * The directory to watch.
+   */
+  dirPath: string;
+
+  /**
+   * The session ID.
+   */
+  sessionId: string;
+
+  /**
+   * The timeout in milliseconds.
+   */
+  timeout?: number;
+}

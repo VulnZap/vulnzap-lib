@@ -13,7 +13,7 @@ import type {
 import * as fs from "fs";
 import * as path from "path";
 import { EventEmitter } from "events";
-import type { VulnzapClientOptions } from "../types/client";
+import type { SecurityAssistantOptions, VulnzapClientOptions } from "../types/client";
 import { VulnzapCache } from "./system/cache";
 
 /**
@@ -161,8 +161,13 @@ export class VulnzapClient extends EventEmitter {
    * @param sessionId - The session ID.
    * @returns True if the watcher started successfully.
    */
-  securityAssistant(dirPath: string, sessionId: string): boolean {
-    if (!fs.existsSync(dirPath)) {
+  securityAssistant(options: SecurityAssistantOptions): boolean {
+    if (!fs.existsSync(options.dirPath)) {
+      return false;
+    }
+
+    // verify timeout is a number and withing 10000 to 600000
+    if (typeof options.timeout !== "number" || options.timeout < 10000 || options.timeout > 600000) {
       return false;
     }
 
@@ -171,11 +176,11 @@ export class VulnzapClient extends EventEmitter {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(() => {
         watcher.close();
-        console.log(`Security agent session ${sessionId} closed due to inactivity.`);
-      }, 60000); // 1 minute timeout
+        console.log(`Security agent session ${options.sessionId} closed due to inactivity.`);
+      }, options.timeout);
     };
 
-    const watcher = fs.watch(dirPath, { recursive: true }, async (eventType, filename) => {
+    const watcher = fs.watch(options.dirPath, { recursive: true }, async (eventType, filename) => {
       if (filename &&
         !filename.includes("node_modules") &&
         !filename.includes(".git") &&
@@ -184,7 +189,7 @@ export class VulnzapClient extends EventEmitter {
         !filename.includes(".lock")
       ) {
         resetTimeout();
-        const filePath = path.join(dirPath, filename);
+        const filePath = path.join(options.dirPath, filename);
 
         try {
           const stats = await fs.promises.stat(filePath);
@@ -192,27 +197,27 @@ export class VulnzapClient extends EventEmitter {
             const content = await fs.promises.readFile(filePath, "utf-8");
 
             // Get session to check if file was previously tracked
-            const session = await this.cache.getSession(sessionId) || {
-              sessionId,
-              path: dirPath,
+            const session = await this.cache.getSession(options.sessionId) || {
+              sessionId: options.sessionId,
+              path: options.dirPath,
               timestamp: Date.now(),
               files: []
             };
 
             // Determine if file is changed (exists in session) or new
-            const isChanged = session.files.includes(filename);
+            const isChanged = session.files.includes(filename) || !session.files.includes(filename);
 
             // Send to backend
             try {
               await this.api.scanIncremental({
-                sessionId,
+                sessionId: options.sessionId,
                 files: [{ path: filename, content, changed: isChanged }],
               });
 
               // Update session cache
               if (!isChanged) {
                 session.files.push(filename);
-                await this.cache.saveSession(sessionId, session);
+                await this.cache.saveSession(options.sessionId, session);
               }
             } catch (error) {
               console.error(`Failed to scan incremental change for ${filename}:`, error);
